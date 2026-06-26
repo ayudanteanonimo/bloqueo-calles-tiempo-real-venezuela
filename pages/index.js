@@ -403,7 +403,7 @@ export default function Home() {
       <Head>
         <title>Vías VE · Calles bloqueadas en tiempo real</title>
         <meta name="description" content="Mapa colaborativo en tiempo real de calles bloqueadas en Venezuela. Creado por NIVEL_DI0S." />
-        <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+        <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,interactive-widget=resizes-content" />
         <meta name="theme-color" content="#fbbf24" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -567,28 +567,55 @@ export default function Home() {
 
       {/* MODAL */}
       {modal && (
-        <div onClick={e => { if(e.target===e.currentTarget) closeModal() }}
-          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.8)', zIndex:300, display:'flex', alignItems:'flex-end', justifyContent:'center', backdropFilter:'blur(3px)', animation:'fadeUp .2s ease' }}>
-          <div style={{ background:'#141414', border:'1px solid #2a2a2a', borderRadius:'16px 16px 0 0', width:'100%', maxWidth:500, maxHeight:'92vh', display:'flex', flexDirection:'column' }}>
-            <div style={{ width:36, height:3, background:'#2a2a2a', borderRadius:2, margin:'14px auto 0', flexShrink:0 }} />
-            <div style={{ padding:'14px 18px 0', flexShrink:0 }}>
-              <h2 style={{ fontSize:'1rem', fontWeight:700, marginBottom:3 }}>🚫 Reportar vía bloqueada</h2>
-              <p style={{ fontSize:'.73rem', color:'#059669' }}>
-                📍 {coord?.lat.toFixed(5)}, {coord?.lng.toFixed(5)} — punto marcado
-              </p>
+        <>
+          {/* Backdrop — tapping it closes the modal */}
+          <div
+            onClick={closeModal}
+            style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.7)', zIndex:300, backdropFilter:'blur(3px)', animation:'fadeUp .2s ease' }}
+          />
+          {/* Bottom sheet — sits on top of backdrop, above the map, scrolls internally */}
+          <div style={{
+            position:'fixed', left:0, right:0, bottom:0, zIndex:301,
+            display:'flex', flexDirection:'column',
+            background:'#141414', border:'1px solid #2a2a2a',
+            borderRadius:'18px 18px 0 0',
+            maxHeight:'85dvh',          /* dynamic viewport = shrinks when keyboard opens */
+            maxWidth:500, margin:'0 auto',
+            animation:'slideUp .25s ease',
+            /* fallback for browsers without dvh */
+            // eslint-disable-next-line no-dupe-keys
+          }}>
+            {/* Drag handle */}
+            <div style={{ width:40, height:4, background:'#333', borderRadius:2, margin:'12px auto 0', flexShrink:0 }} />
+
+            {/* Header */}
+            <div style={{ padding:'12px 18px 0', flexShrink:0, display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
+              <div>
+                <h2 style={{ fontSize:'1rem', fontWeight:700, marginBottom:3 }}>🚫 Reportar vía bloqueada</h2>
+                <p style={{ fontSize:'.73rem', color:'#059669' }}>
+                  📍 {coord?.lat.toFixed(5)}, {coord?.lng.toFixed(5)} — punto marcado
+                </p>
+              </div>
+              <button
+                onClick={closeModal}
+                style={{ background:'#1c1c1c', border:'1px solid #2a2a2a', color:'#888', borderRadius:8, width:32, height:32, fontSize:'1rem', cursor:'pointer', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}
+              >✕</button>
             </div>
-            <div style={{ padding:'14px 18px', overflowY:'auto', flex:1 }}>
+
+            {/* Scrollable body */}
+            <div style={{ padding:'14px 18px', overflowY:'auto', flex:1, WebkitOverflowScrolling:'touch' }}>
 
               {/* Type */}
               <div style={{ marginBottom:14 }}>
-                <div style={{ fontSize:'.65rem', fontFamily:'monospace', color:'#555', marginBottom:7, letterSpacing:'.05em' }}>TIPO DE BLOQUEO</div>
+                <div style={{ fontSize:'.65rem', fontFamily:'monospace', color:'#555', marginBottom:7, letterSpacing:'.05em' }}>TIPO DE BLOQUEO *</div>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:7 }}>
                   {Object.entries(BLOCK_TYPES).map(([k,v]) => (
                     <button key={k} onClick={() => setFType(k)} style={{
                       padding:'11px 10px', textAlign:'center', lineHeight:1.4,
-                      border:fType===k?`1px solid ${v.color}`:'1px solid #2a2a2a',
-                      borderRadius:8, background:fType===k?v.color+'18':'#1c1c1c',
+                      border:fType===k?`2px solid ${v.color}`:'1px solid #2a2a2a',
+                      borderRadius:8, background:fType===k?v.color+'22':'#1c1c1c',
                       color:fType===k?v.color:'#666', fontSize:'.75rem', fontWeight:500, cursor:'pointer',
+                      transition:'all .15s',
                     }}>
                       <div style={{ fontSize:'1.2rem', marginBottom:3 }}>{v.icon}</div>
                       <div style={{ fontWeight:600 }}>{v.label}</div>
@@ -603,41 +630,44 @@ export default function Home() {
                 <div style={{ fontSize:'.65rem', fontFamily:'monospace', color:'#555', marginBottom:5, letterSpacing:'.05em' }}>VÍA O REFERENCIA</div>
                 <input value={fVia} onChange={e=>setFVia(e.target.value)} maxLength={80}
                   placeholder="Av. Libertador, Autopista La Guaira km 12..."
-                  style={{ width:'100%', background:'#1c1c1c', border:'1px solid #2a2a2a', color:'#f1f1f1', padding:'9px 12px', borderRadius:8, fontSize:'.85rem', outline:'none', fontFamily:'inherit' }} />
+                  style={{ width:'100%', background:'#1c1c1c', border:'1px solid #2a2a2a', color:'#f1f1f1', padding:'9px 12px', borderRadius:8, fontSize:16, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
               </div>
 
               {/* Desc */}
               <div style={{ marginBottom:12 }}>
                 <div style={{ fontSize:'.65rem', fontFamily:'monospace', color:'#555', marginBottom:5, letterSpacing:'.05em' }}>
-                  DESCRIPCIÓN <span style={{ color:fDesc.length>260?'#ef4444':'#333' }}>{fDesc.length}/300</span>
+                  DESCRIPCIÓN * <span style={{ color:fDesc.length>260?'#ef4444':'#444' }}>{fDesc.length}/300</span>
                 </div>
                 <textarea value={fDesc} onChange={e=>setFDesc(e.target.value)} maxLength={300}
                   placeholder="Qué está pasando, si hay paso alternativo, cuántos vehículos..."
-                  style={{ width:'100%', background:'#1c1c1c', border:'1px solid #2a2a2a', color:'#f1f1f1', padding:'9px 12px', borderRadius:8, fontSize:'.85rem', outline:'none', resize:'vertical', minHeight:80, lineHeight:1.5, fontFamily:'inherit' }} />
+                  style={{ width:'100%', background:'#1c1c1c', border:'1px solid #2a2a2a', color:'#f1f1f1', padding:'9px 12px', borderRadius:8, fontSize:16, outline:'none', resize:'none', height:88, lineHeight:1.5, fontFamily:'inherit', boxSizing:'border-box' }} />
               </div>
 
               {/* Name */}
-              <div>
+              <div style={{ marginBottom:4 }}>
                 <div style={{ fontSize:'.65rem', fontFamily:'monospace', color:'#555', marginBottom:5, letterSpacing:'.05em' }}>TU NOMBRE (opcional)</div>
                 <input value={fName} onChange={e=>setFName(e.target.value)} maxLength={40}
                   placeholder="Para que otros sepan quién reportó"
-                  style={{ width:'100%', background:'#1c1c1c', border:'1px solid #2a2a2a', color:'#f1f1f1', padding:'9px 12px', borderRadius:8, fontSize:'.85rem', outline:'none', fontFamily:'inherit' }} />
+                  style={{ width:'100%', background:'#1c1c1c', border:'1px solid #2a2a2a', color:'#f1f1f1', padding:'9px 12px', borderRadius:8, fontSize:16, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
               </div>
             </div>
-            <div style={{ padding:'12px 18px 28px', display:'flex', gap:8, borderTop:'1px solid #1e1e1e', flexShrink:0 }}>
+
+            {/* Action buttons — always visible, safe-area aware */}
+            <div style={{ padding:'12px 18px', paddingBottom:'max(18px, env(safe-area-inset-bottom))', display:'flex', gap:8, borderTop:'1px solid #1e1e1e', flexShrink:0, background:'#141414' }}>
               <button onClick={closeModal} style={{ flex:1, padding:12, background:'#1c1c1c', border:'1px solid #2a2a2a', color:'#666', borderRadius:8, fontSize:'.85rem', fontWeight:600, cursor:'pointer' }}>
                 Cancelar
               </button>
               <button onClick={submit} disabled={submitting||!fType} style={{
                 flex:2, padding:12, border:'none', borderRadius:8, fontSize:'.85rem', fontWeight:700,
                 background:!fType?'#1c1c1c':'#fbbf24', color:!fType?'#444':'#000',
-                cursor:submitting||!fType?'not-allowed':'pointer', opacity:submitting?.7:1,
+                cursor:submitting||!fType?'not-allowed':'pointer', opacity:submitting?0.7:1,
+                transition:'all .15s',
               }}>
                 {submitting ? 'Publicando...' : '🚫 Publicar bloqueo'}
               </button>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* TOAST */}

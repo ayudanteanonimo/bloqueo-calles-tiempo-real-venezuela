@@ -369,25 +369,58 @@ export default function Home() {
   const submit = async () => {
     if (!fType)        { showToast('Selecciona el tipo de bloqueo', 'err'); return }
     if (!fDesc.trim()) { showToast('Escribe una descripción', 'err'); return }
+    if (!coord)        { showToast('No hay punto marcado, vuelve atrás', 'err'); return }
+
+    // Snapshot coord before any state changes
+    const savedLat = coord.lat
+    const savedLng = coord.lng
+
     setSubmitting(true)
     try {
       const res = await fetch('/api/block', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lat: coord.lat, lng: coord.lng, type: fType, via: fVia, desc: fDesc, reportedBy: fName || 'Anónimo' }),
+        body: JSON.stringify({
+          lat: savedLat,
+          lng: savedLng,
+          type: fType,
+          via: fVia.trim(),
+          desc: fDesc.trim(),
+          reportedBy: (fName || 'Anónimo').trim(),
+        }),
       })
-      const data = await res.json()
-      if (!res.ok) { showToast(data.error || 'Error al enviar', 'err'); return }
+
+      let data = {}
+      try { data = await res.json() } catch { data = {} }
+
+      if (!res.ok) {
+        showToast(data.error || 'Error al enviar (código ' + res.status + ')', 'err')
+        return
+      }
+
+      // Clean up temp marker
       if (tempMarkerRef.current && mapObjRef.current) {
         mapObjRef.current.removeLayer(tempMarkerRef.current)
         tempMarkerRef.current = null
       }
+
+      // Reset state
       setCoord(null)
-      showToast('🚫 Bloqueo publicado — ya aparece en el mapa', 'ok')
+      setFType(''); setFVia(''); setFDesc(''); setFName('')
+
+      // Navigate to map and center on new block
       setTab('map')
-      setTimeout(() => mapObjRef.current?.setView([coord.lat, coord.lng], 16), 200)
-    } catch {
-      showToast('Error de conexión', 'err')
+      showToast('🚫 Bloqueo publicado — ya aparece en el mapa', 'ok')
+      setTimeout(() => {
+        if (mapObjRef.current) {
+          mapObjRef.current.invalidateSize()
+          mapObjRef.current.setView([savedLat, savedLng], 16)
+        }
+      }, 150)
+
+    } catch (err) {
+      console.error('[submit]', err)
+      showToast('Error de conexión — verifica tu internet', 'err')
     } finally {
       setSubmitting(false)
     }
@@ -395,7 +428,12 @@ export default function Home() {
 
   const resolve = async id => {
     try {
-      await fetch('/api/block', { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ id }) })
+      const res = await fetch('/api/block', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      if (!res.ok) { showToast('Error al marcar como libre', 'err'); return }
       showToast('✅ Vía marcada como libre', 'ok')
     } catch {
       showToast('Error de conexión', 'err')

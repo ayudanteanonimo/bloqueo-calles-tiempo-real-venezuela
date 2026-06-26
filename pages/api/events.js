@@ -5,46 +5,61 @@ export const config = { api: { bodyParser: false } }
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end()
 
-  res.setHeader('Content-Type', 'text/event-stream')
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
   res.setHeader('Cache-Control', 'no-cache, no-transform')
   res.setHeader('Connection', 'keep-alive')
   res.setHeader('X-Accel-Buffering', 'no')
   res.flushHeaders()
 
+  let closed = false
+
   const send = (event, data) => {
-    try { res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`) } catch {}
+    if (closed) return
+    try {
+      res.write('event: ' + event + '\ndata: ' + JSON.stringify(data) + '\n\n')
+    } catch { closed = true }
   }
 
   // Send initial data immediately
   try {
     const blocks = await getBlocks()
     send('init', { blocks })
-  } catch {
-    send('error', { message: 'Error al cargar' })
+  } catch (err) {
+    console.error('[events init]', err)
+    send('init', { blocks: [] })
   }
 
-  let lastId = null
+  // Track a hash of the full list to detect any change (add or delete)
+  let lastHash = ''
 
-  // Poll every 4s, only send if something changed
+  const hashBlocks = (blocks) => {
+    if (!blocks.length) return 'empty'
+    // Use all ids joined — detects additions AND deletions
+    return blocks.map(b => b.id).join(',')
+  }
+
   const poll = setInterval(async () => {
+    if (closed) { clearInterval(poll); return }
     try {
       const blocks = await getBlocks()
-      const newId = blocks[0]?.id || 'empty'
-      if (newId !== lastId) {
-        lastId = newId
+      const hash = hashBlocks(blocks)
+      if (hash !== lastHash) {
+        lastHash = hash
         send('update', { blocks })
       }
-    } catch {}
+    } catch { /* ignore poll errors */ }
   }, 4000)
 
-  // Heartbeat every 20s
+  // Heartbeat every 18s to keep connection alive through proxies
   const hb = setInterval(() => {
-    try { res.write(': ping\n\n') } catch {}
-  }, 20000)
+    if (closed) { clearInterval(hb); return }
+    try { res.write(': ping\n\n') } catch { closed = true }
+  }, 18000)
 
   req.on('close', () => {
+    closed = true
     clearInterval(poll)
     clearInterval(hb)
-    res.end()
+    try { res.end() } catch {}
   })
 }

@@ -428,7 +428,7 @@ export default function Home() {
             <div style={{ fontSize:'.78rem', color:'#93c5fd', lineHeight:1.4 }}>
               📲 <strong>Instala Vías VE</strong> en tu móvil para acceso rápido
             </div>
-            <div style={{ display:'flex', gap:7', flexShrink:0 }}>
+            <div style={{ display:'flex', gap:7, flexShrink:0 }}>
               <button onClick={installApp} style={{ padding:'6px 14px', background:'#2563eb', color:'#fff', border:'none', borderRadius:6, fontSize:'.75rem', fontWeight:700, cursor:'pointer' }}>
                 Instalar
               </button>
